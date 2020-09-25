@@ -164,6 +164,8 @@ import (
 	"github.com/banzaicloud/pipeline/src/api/ark/schedules"
 	"github.com/banzaicloud/pipeline/src/api/cluster/namespace"
 	"github.com/banzaicloud/pipeline/src/api/cluster/pke"
+	"github.com/banzaicloud/pipeline/src/api/cluster/pke/pkeservice"
+	"github.com/banzaicloud/pipeline/src/api/cluster/pke/pkeservice/pkeservicedriver"
 	cgroupAPI "github.com/banzaicloud/pipeline/src/api/clustergroup"
 	"github.com/banzaicloud/pipeline/src/api/common"
 	"github.com/banzaicloud/pipeline/src/auth"
@@ -747,6 +749,7 @@ func main() {
 			// cluster API
 			cRouter := orgs.Group("/:orgid/clusters/:id")
 			clusterRouter := orgRouter.PathPrefix("/clusters/{clusterId}").Subrouter()
+			clusterStore := clusteradapter.NewStore(db, clusters)
 			{
 				logger := commonadapter.NewLogger(logger) // TODO: make this a context aware logger
 
@@ -809,9 +812,8 @@ func main() {
 				cRouter.GET("/images/:imageDigest/deployments", imageDeploymentHandler.GetImageDeployments)
 
 				cRouter.GET("/deployments/:name/images", api.GetDeploymentImages)
-				{
-					clusterStore := clusteradapter.NewStore(db, clusters)
 
+				{
 					labelValidator := kubernetes2.LabelValidator{
 						ForbiddenDomains: append([]string{config.Cluster.Labels.Domain}, config.Cluster.Labels.ForbiddenDomains...),
 					}
@@ -910,6 +912,7 @@ func main() {
 					cRouter.Any("/nodepools", gin.WrapH(router))
 					cRouter.Any("/nodepools/:nodePoolName", gin.WrapH(router))
 					cRouter.Any("/nodepools/:nodePoolName/update", gin.WrapH(router))
+
 				}
 			}
 
@@ -1059,6 +1062,23 @@ func main() {
 				leaderRepository,
 			)
 			pkeAPI.RegisterRoutes(pkeGroup)
+
+			pkeService := pkeservice.NewService(
+				clusterStore,
+				logger,
+			)
+			pkeEndpoints := pkeservicedriver.MakeEndpoints(
+				pkeService,
+				kitxendpoint.Combine(endpointMiddleware...),
+			)
+
+			pkeservicedriver.RegisterHTTPHandlers(
+				pkeEndpoints,
+				clusterRouter,
+				kitxhttp.ServerOptions(httpServerOptions),
+			)
+
+			pkeGroup.POST("/status", gin.WrapH(router))
 
 			pipelineExternalURL, err := url.Parse(externalBaseURL)
 			emperror.Panic(errors.WrapIf(err, "failed to parse pipeline externalBaseURL"))
