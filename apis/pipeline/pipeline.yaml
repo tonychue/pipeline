@@ -2339,6 +2339,31 @@ paths:
                 default:
                     $ref: '#/components/responses/Error'
 
+
+    /api/v1/orgs/{orgId}/clusters/{id}/pke/status:
+        parameters:
+            - $ref: '#/components/parameters/orgId'
+            - $ref: '#/components/parameters/clusterId'
+
+        post:
+            security:
+                - bearerAuth: []
+            tags:
+                - clusters
+            summary: Report to Pipeline the progress of the bootstrapping of a new node (to be called by PKE installer)
+            operationId: PostPKENodeStatus
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/PostPKENodeStatusRequest'
+            responses:
+                200:
+                    description: "Success"
+                default:
+                    $ref: '#/components/responses/Error'
+
     /api/v1/orgs/{orgId}/clusters/{id}/pke/commands:
         get:
             security:
@@ -7581,7 +7606,6 @@ components:
               additionalProperties:
                 type: string
                 example: "pke-installer install --pipeline-url=\"http://127.0.0.1:9090\" --pipeline-token=XXX --pipeline-org-id=3 --pipeline-cluster-id=19 --node-pool=\"distrMaster\" --role=master"
-
         PostReadyPKENodeRequest:
             type: object
             properties:
@@ -7609,6 +7633,43 @@ components:
                 type: boolean
                 description: if this node is a worker node
                 example: false
+
+        PostPKENodeStatusRequest:
+            type: object
+            properties:
+              name:
+                type: string
+                example: my-node
+                description: name of node
+              nodePool:
+                type: string
+                example: master
+                description: name of nodepool
+              ip:
+                type: string
+                example: 127.0.0.1
+                description: ip address of node (where the other nodes can reach it)
+              message:
+                type: string
+                example: installing docker daemon
+                description: detailed description about the current bootstrapping status (including the cause of the failure)
+              phase:
+                type: string
+                description: the current phase of the bootstrap process
+                example: pre-flight
+              finished:
+                type: boolean
+                description: if the installation process is finished (either with success or failure)
+                example: false
+              failure:
+                type: boolean
+                description: if a fatal failure occurred (i.e. the node will not come up)
+                example: false
+              timestamp:
+                type: string
+                nullable: true
+                format: date-time
+                description: exact time of event
 
         PKEClusterReadinessResponse:
             type: object
