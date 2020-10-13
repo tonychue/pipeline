@@ -60,9 +60,9 @@ type Service interface {
 }
 
 type service struct {
-	clusters  Store
-	processes process
-	logger    logur.Logger
+	clusters Store
+	//processes process
+	logger logur.Logger
 }
 
 func (s service) RegisterNodeStatus(ctx context.Context, clusterIdentifier cluster.Identifier, nodeStatus NodeStatus) (err error) {
