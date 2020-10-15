@@ -29,8 +29,8 @@ import (
 
 	cloudformation2 "github.com/banzaicloud/pipeline/internal/cloudformation"
 	pkgCluster "github.com/banzaicloud/pipeline/internal/cluster"
-	"github.com/banzaicloud/pipeline/pkg/brn"
 	pkgCloudFormation "github.com/banzaicloud/pipeline/pkg/providers/amazon/cloudformation"
+	"github.com/banzaicloud/pipeline/pkg/sdk/brn"
 	sdkAmazon "github.com/banzaicloud/pipeline/pkg/sdk/providers/amazon"
 	sdkCloudFormation "github.com/banzaicloud/pipeline/pkg/sdk/providers/amazon/cloudformation"
 )
