@@ -382,11 +382,6 @@ func main() {
 
 		azurePKEClusterStore := azurePKEAdapter.NewClusterStore(db, commonadapter.NewLogger(logger))
 
-		{
-			passwordSecrets := intpkeworkflowadapter.NewPasswordSecretStore(commonSecretStore)
-			registerPKEWorkflows(passwordSecrets)
-		}
-
 		// Register azure specific workflows
 		registerAzureWorkflows(secretStore, tokenGenerator, azurePKEClusterStore)
 
@@ -397,6 +392,12 @@ func main() {
 		err = registerEKSWorkflows(config, secret.Store, eksClusters, eksadapter.NewNodePoolStore(db), clusterDynamicClientFactory)
 		if err != nil {
 			emperror.Panic(errors.WrapIf(err, "failed to register EKS workflows"))
+		}
+
+		{
+			passwordSecrets := intpkeworkflowadapter.NewPasswordSecretStore(commonSecretStore)
+			registerPKEWorkflows(
+				passwordSecrets, config, secret.Store, pkeawsadapter.NewNodePoolStore(db), clusterDynamicClientFactory)
 		}
 
 		vsphereClusterStore := vsphereadapter.NewClusterStore(db)
