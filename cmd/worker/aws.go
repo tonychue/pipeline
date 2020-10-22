@@ -33,7 +33,7 @@ func registerAwsWorkflows(
 	pipelineExternalURL string,
 	pipelineExternalURLInsecure bool,
 ) {
-	workflow.RegisterWithOptions(pkeworkflow.CreateClusterWorkflow{GlobalRegion: pkeGlobalRegion}.Execute, workflow.RegisterOptions{Name: pkeworkflow.CreateClusterWorkflowName})
+	workflow.RegisterWithOptions(pkeworkflow.NewCreateClusterWorkflow(pkeGlobalRegion).Execute, workflow.RegisterOptions{Name: pkeworkflow.CreateClusterWorkflowName})
 	workflow.RegisterWithOptions(pkeworkflow.DeleteClusterWorkflow, workflow.RegisterOptions{Name: pkeworkflow.DeleteClusterWorkflowName})
 	workflow.RegisterWithOptions(pkeworkflow.UpdateClusterWorkflow, workflow.RegisterOptions{Name: pkeworkflow.UpdateClusterWorkflowName})
 

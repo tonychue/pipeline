@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	pkeVersion      = "0.5.1"
+	pkeVersion      = "pke-log3"
 	MasterNodeTaint = pkgPKE.TaintKeyMaster + ":" + string(corev1.TaintEffectNoSchedule)
 )
 
@@ -405,6 +405,7 @@ PRIVATE_IP=$(hostname -I | cut -d" " -f 1)
 PUBLIC_ADDRESS="{{ if .PublicAddress }}{{ .PublicAddress }}{{ else }}$PRIVATE_IP{{ end }}"
 
 export PATH=$PATH:/usr/local/bin/
+	curl -v https://banzaicloud.com/downloads/pke/pke-{{ .PKEVersion }} -o /usr/local/bin/pke # TODO REMOVE
 if ! command -v pke > /dev/null 2>&1; then
 	until curl -v https://banzaicloud.com/downloads/pke/pke-{{ .PKEVersion }} -o /usr/local/bin/pke; do sleep 10; done
 	chmod +x /usr/local/bin/pke
@@ -446,6 +447,7 @@ set -x
 {{ if .NoProxy }}export NO_PROXY="{{ .NoProxy }}"{{ end }}
 
 export PATH=$PATH:/usr/local/bin/
+	curl -v https://banzaicloud.com/downloads/pke/pke-{{ .PKEVersion }} -o /usr/local/bin/pke # TODO REMOVE
 if ! command -v pke > /dev/null 2>&1; then
 until curl -v https://banzaicloud.com/downloads/pke/pke-{{ .PKEVersion }} -o /usr/local/bin/pke; do sleep 10; done
 chmod +x /usr/local/bin/pke

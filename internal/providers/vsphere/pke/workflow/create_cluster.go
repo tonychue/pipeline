@@ -24,7 +24,6 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"go.uber.org/cadence"
 	"go.uber.org/cadence/workflow"
-	"go.uber.org/zap"
 
 	"github.com/banzaicloud/pipeline/internal/cluster/clustersetup"
 	intPKE "github.com/banzaicloud/pipeline/internal/pke"
@@ -32,10 +31,14 @@ import (
 	"github.com/banzaicloud/pipeline/internal/providers/pke/pkeworkflow"
 	pkgCluster "github.com/banzaicloud/pipeline/pkg/cluster"
 	"github.com/banzaicloud/pipeline/pkg/sdk/brn"
+	"github.com/banzaicloud/pipeline/pkg/sdk/cadence/lib/pipeline/processlog"
 	"github.com/banzaicloud/pipeline/src/cluster"
 )
 
-const CreateClusterWorkflowName = "pke-vsphere-create-cluster"
+const (
+	CreateClusterWorkflowName = "pke-vsphere-create-cluster"
+	signalName                = "node-bootstrapped"
+)
 
 // CreateClusterWorkflowInput
 type CreateClusterWorkflowInput struct {
@@ -56,7 +59,24 @@ type CreateClusterWorkflowInput struct {
 	NodePoolLabels   map[string]map[string]string
 }
 
-func CreateClusterWorkflow(ctx workflow.Context, input CreateClusterWorkflowInput) error {
+func NewCreateClusterWorkflow() CreateClusterWorkflow {
+	return CreateClusterWorkflow{processlog.New()}
+}
+
+type CreateClusterWorkflow struct {
+	processLogger processlog.ProcessLogger
+}
+
+func (w CreateClusterWorkflow) Execute(ctx workflow.Context, input CreateClusterWorkflowInput) (err error) {
+	clusterID := brn.New(input.OrganizationID, brn.ClusterResourceType, fmt.Sprint(input.ClusterID))
+	process := w.processLogger.StartProcess(ctx, clusterID.String())
+	defer func() {
+		process.Finish(ctx, err)
+		if err != nil {
+			_ = setClusterErrorStatus(ctx, input.ClusterID, err)
+		}
+	}()
+
 	ao := workflow.ActivityOptions{
 		ScheduleToStartTimeout: 5 * time.Minute,
 		StartToCloseTimeout:    10 * time.Minute,
@@ -78,7 +98,6 @@ func CreateClusterWorkflow(ctx workflow.Context, input CreateClusterWorkflowInpu
 
 		err := workflow.ExecuteActivity(ctx, pkeworkflow.GenerateCertificatesActivityName, activityInput).Get(ctx, nil)
 		if err != nil {
-			_ = setClusterErrorStatus(ctx, input.ClusterID, err)
 			return err
 		}
 	}
@@ -90,7 +109,6 @@ func CreateClusterWorkflow(ctx workflow.Context, input CreateClusterWorkflowInpu
 		}
 		err := workflow.ExecuteActivity(ctx, pkeworkflow.CreateDexClientActivityName, activityInput).Get(ctx, nil)
 		if err != nil {
-			_ = setClusterErrorStatus(ctx, input.ClusterID, err)
 			return err
 		}
 	}
@@ -108,7 +126,6 @@ func CreateClusterWorkflow(ctx workflow.Context, input CreateClusterWorkflowInpu
 		}
 		var output intPKEWorkflow.AssembleHTTPProxySettingsActivityOutput
 		if err := workflow.ExecuteActivity(ctx, intPKEWorkflow.AssembleHTTPProxySettingsActivityName, activityInput).Get(ctx, &output); err != nil {
-			_ = setClusterErrorStatus(ctx, input.ClusterID, err)
 			return err
 		}
 		httpProxy = output.Settings
@@ -151,13 +168,12 @@ func CreateClusterWorkflow(ctx workflow.Context, input CreateClusterWorkflowInpu
 		}
 
 		if err := errors.Combine(errs...); err != nil {
-			_ = setClusterErrorStatus(ctx, input.ClusterID, err)
 			return err
 		}
 	}
 
 	var masterIP string
-	err := workflow.ExecuteActivity(ctx, WaitForIPActivityName, WaitForIPActivityInput{
+	err = workflow.ExecuteActivity(ctx, WaitForIPActivityName, WaitForIPActivityInput{
 		Ref:            masterRef,
 		OrganizationID: input.OrganizationID,
 		SecretID:       input.SecretID,
@@ -207,13 +223,11 @@ func CreateClusterWorkflow(ctx workflow.Context, input CreateClusterWorkflowInpu
 		}
 
 		if err := errors.Combine(errs...); err != nil {
-			_ = setClusterErrorStatus(ctx, input.ClusterID, err)
 			return err
 		}
 	}
 
 	if err := waitForMasterReadySignal(ctx, 1*time.Hour); err != nil {
-		_ = setClusterErrorStatus(ctx, input.ClusterID, err)
 		return err
 	}
 
@@ -224,7 +238,6 @@ func CreateClusterWorkflow(ctx workflow.Context, input CreateClusterWorkflowInpu
 		}
 		future := workflow.ExecuteActivity(ctx, cluster.DownloadK8sConfigActivityName, activityInput)
 		if err := future.Get(ctx, &configSecretID); err != nil {
-			_ = setClusterErrorStatus(ctx, input.ClusterID, err)
 			return err
 		}
 	}
@@ -246,7 +259,6 @@ func CreateClusterWorkflow(ctx workflow.Context, input CreateClusterWorkflowInpu
 
 		future := workflow.ExecuteChildWorkflow(ctx, clustersetup.WorkflowName, workflowInput)
 		if err := future.Get(ctx, nil); err != nil {
-			_ = setClusterErrorStatus(ctx, input.ClusterID, err)
 			return err
 		}
 	}
@@ -258,7 +270,6 @@ func CreateClusterWorkflow(ctx workflow.Context, input CreateClusterWorkflowInpu
 
 	err = workflow.ExecuteChildWorkflow(ctx, cluster.RunPostHooksWorkflowName, postHookWorkflowInput).Get(ctx, nil)
 	if err != nil {
-		_ = setClusterErrorStatus(ctx, input.ClusterID, err)
 		return err
 	}
 
@@ -275,15 +286,22 @@ func getHostPort(o intPKE.HTTPProxyOptions) string {
 	return net.JoinHostPort(o.Host, strconv.FormatUint(uint64(o.Port), 10))
 }
 
+type decodableError struct {
+	Message string
+}
+
+func (d decodableError) Error() string {
+	return d.Message
+}
+
 func waitForMasterReadySignal(ctx workflow.Context, timeout time.Duration) error {
-	signalName := "master-ready"
 	signalChan := workflow.GetSignalChannel(ctx, signalName)
 	signalTimeoutTimer := workflow.NewTimer(ctx, timeout)
 	signalTimeout := false
 
+	var signalValue decodableError
 	signalSelector := workflow.NewSelector(ctx).AddReceive(signalChan, func(c workflow.Channel, more bool) {
-		c.Receive(ctx, nil)
-		workflow.GetLogger(ctx).Info("Received signal!", zap.String("signal", signalName))
+		c.Receive(ctx, &signalValue)
 	}).AddFuture(signalTimeoutTimer, func(workflow.Future) {
 		signalTimeout = true
 	})
@@ -292,6 +310,9 @@ func waitForMasterReadySignal(ctx workflow.Context, timeout time.Duration) error
 
 	if signalTimeout {
 		return fmt.Errorf("timeout while waiting for %q signal", signalName)
+	}
+	if signalValue.Error() != "" {
+		return errors.Wrap(signalValue, "failed to start node")
 	}
 	return nil
 }

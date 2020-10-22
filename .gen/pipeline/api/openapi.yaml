@@ -9912,7 +9912,11 @@ paths:
               $ref: '#/components/schemas/PostPKENodeStatusRequest'
         required: true
       responses:
-        "200":
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPKENodeStatusResponse'
           description: Success
         default:
           content:
@@ -19211,6 +19215,14 @@ components:
       items:
         $ref: '#/components/schemas/NodePoolSummary'
       type: array
+    PostPKENodeStatusResponse:
+      example:
+        processId: processId
+      properties:
+        processId:
+          description: ID of the registered process
+          type: string
+      type: object
     NodePoolSummary:
       allOf:
       - $ref: '#/components/schemas/NodePool'
@@ -22192,19 +22204,20 @@ components:
           description: the current phase of the bootstrap process
           example: pre-flight
           type: string
-        finished:
-          description: if the installation process is finished (either with success
-            or failure)
-          example: false
+        final:
+          description: if this is the final status report, that describes the conclusion
+            of the whole process
           type: boolean
-        failure:
-          description: if a fatal failure occurred (i.e. the node will not come up)
-          example: false
-          type: boolean
+        status:
+          $ref: '#/components/schemas/ProcessStatus'
         timestamp:
           description: exact time of event
           format: date-time
           nullable: true
+          type: string
+        processId:
+          description: ID of the process registered earlier (register new process
+            if empty)
           type: string
       type: object
     PKEClusterReadinessResponse:
@@ -23369,6 +23382,7 @@ components:
           id: 6
           type: type
           timestamp: 2000-01-23T04:56:07.000+00:00
+        resourceType: resourceType
         finishedAt: 2000-01-23T04:56:07.000+00:00
       properties:
         id:
@@ -23382,6 +23396,8 @@ components:
         log:
           type: string
         resourceId:
+          type: string
+        resourceType:
           type: string
         status:
           $ref: '#/components/schemas/ProcessStatus'

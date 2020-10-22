@@ -46,7 +46,7 @@ func RegisterHTTPHandlers(endpoints Endpoints, router *mux.Router, options ...ki
 }
 
 func decodeRegisterNodeStatusHTTPRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	clusterID, err := getClusterID(r)
+	cluster, err := getClusterIentifiers(r)
 	if err != nil {
 		return nil, err
 	}
@@ -73,26 +73,43 @@ func decodeRegisterNodeStatusHTTPRequest(_ context.Context, r *http.Request) (in
 	}
 
 	return RegisterNodeStatusRequest{
-		ClusterIdentifier: cluster.Identifier{
-			ClusterID: clusterID,
-		},
-		NodeStatus: status,
+		ClusterIdentifier: cluster,
+		NodeStatus:        status,
 	}, nil
 }
 
 func encodeRegisterNodeStatusHTTPResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	apiResp := map[string]interface{}{}
-	return kitxhttp.JSONResponseEncoder(ctx, w, kitxhttp.WithStatusCode(apiResp, http.StatusAccepted))
+	apiResp := response.(RegisterNodeStatusResponse)
+
+	return kitxhttp.JSONResponseEncoder(ctx, w, kitxhttp.WithStatusCode(apiResp.Resp, http.StatusAccepted))
 }
 
-func getClusterID(req *http.Request) (uint, error) {
+func getClusterIentifiers(req *http.Request) (cluster.Identifier, error) {
 	vars := mux.Vars(req)
 
 	clusterIDStr, ok := vars["clusterId"]
 	if !ok {
-		return 0, errors.New("cluster ID not found in path variables")
+		return cluster.Identifier{}, errors.New("cluster ID not found in path variables")
 	}
 
 	clusterID, err := strconv.ParseUint(clusterIDStr, 0, 0)
-	return uint(clusterID), errors.WrapIf(err, "invalid cluster ID format")
+	if err != nil {
+		return cluster.Identifier{}, errors.WrapIf(err, "invalid cluster ID format")
+	}
+
+	orgIDStr, ok := vars["orgId"]
+	if !ok {
+		return cluster.Identifier{}, errors.New("org ID not found in path variables")
+	}
+
+	orgID, err := strconv.ParseUint(orgIDStr, 0, 0)
+	if err != nil {
+		return cluster.Identifier{}, errors.WrapIf(err, "invalid org ID format")
+	}
+
+	return cluster.Identifier{
+		OrganizationID: uint(orgID),
+		ClusterID:      uint(clusterID),
+		ClusterName:    "",
+	}, nil
 }

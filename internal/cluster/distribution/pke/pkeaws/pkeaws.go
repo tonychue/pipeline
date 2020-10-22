@@ -15,4 +15,4 @@
 package pkeaws
 
 // Version is the currently supported PKE version.
-const Version = "pke-log2"
+const Version = "pke-log3"

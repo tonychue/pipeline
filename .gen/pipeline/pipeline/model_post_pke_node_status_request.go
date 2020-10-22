@@ -31,12 +31,14 @@ type PostPkeNodeStatusRequest struct {
 	// the current phase of the bootstrap process
 	Phase string `json:"phase,omitempty"`
 
-	// if the installation process is finished (either with success or failure)
-	Finished bool `json:"finished,omitempty"`
+	// if this is the final status report, that describes the conclusion of the whole process
+	Final bool `json:"final,omitempty"`
 
-	// if a fatal failure occurred (i.e. the node will not come up)
-	Failure bool `json:"failure,omitempty"`
+	Status ProcessStatus `json:"status,omitempty"`
 
 	// exact time of event
 	Timestamp *time.Time `json:"timestamp,omitempty"`
+
+	// ID of the process registered earlier (register new process if empty)
+	ProcessId string `json:"processId,omitempty"`
 }

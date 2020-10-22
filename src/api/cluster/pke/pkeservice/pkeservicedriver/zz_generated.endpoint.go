@@ -46,7 +46,8 @@ type RegisterNodeStatusRequest struct {
 
 // RegisterNodeStatusResponse is a response struct for RegisterNodeStatus endpoint.
 type RegisterNodeStatusResponse struct {
-	Err error
+	Resp pkeservice.RegisterNodeStatusResponse
+	Err  error
 }
 
 func (r RegisterNodeStatusResponse) Failed() error {
@@ -58,16 +59,22 @@ func MakeRegisterNodeStatusEndpoint(service pkeservice.Service) endpoint.Endpoin
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(RegisterNodeStatusRequest)
 
-		err := service.RegisterNodeStatus(ctx, req.ClusterIdentifier, req.NodeStatus)
+		resp, err := service.RegisterNodeStatus(ctx, req.ClusterIdentifier, req.NodeStatus)
 
 		if err != nil {
 			if serviceErr := serviceError(nil); errors.As(err, &serviceErr) && serviceErr.ServiceError() {
-				return RegisterNodeStatusResponse{Err: err}, nil
+				return RegisterNodeStatusResponse{
+					Err:  err,
+					Resp: resp,
+				}, nil
 			}
 
-			return RegisterNodeStatusResponse{Err: err}, err
+			return RegisterNodeStatusResponse{
+				Err:  err,
+				Resp: resp,
+			}, err
 		}
 
-		return RegisterNodeStatusResponse{}, nil
+		return RegisterNodeStatusResponse{Resp: resp}, nil
 	}
 }
