@@ -28,7 +28,7 @@ require (
 	github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-00010101000000-000000000000 // indirect
 	github.com/banzaicloud/anchore-image-validator v0.0.0-20190823121528-918b9fa6af62
 	github.com/banzaicloud/bank-vaults/pkg/sdk v0.4.0
-	github.com/banzaicloud/gin-utilz v0.2.1-0.20201027093430-7dbe8399a109
+	github.com/banzaicloud/gin-utilz v0.3.0
 	github.com/banzaicloud/go-gin-prometheus v0.1.0
 	github.com/banzaicloud/istio-operator v0.0.0-20200330114955-d15bdd228ae4
 	github.com/banzaicloud/logging-operator/pkg/sdk v0.3.15
@@ -135,7 +135,7 @@ replace (
 	github.com/banzaicloud/pipeline/pkg/sdk => ./pkg/sdk
 
 	github.com/jinzhu/gorm => github.com/jinzhu/gorm v1.9.1
-	github.com/qor/auth => github.com/banzaicloud/auth v0.1.4-0.20201027115559-4fc81d59575e
+	github.com/qor/auth => github.com/banzaicloud/auth v0.2.0
 
 	// Kubernetes
 	k8s.io/api => k8s.io/api v0.18.6
