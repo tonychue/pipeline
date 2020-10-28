@@ -397,7 +397,7 @@ func main() {
 		{
 			passwordSecrets := intpkeworkflowadapter.NewPasswordSecretStore(commonSecretStore)
 			registerPKEWorkflows(
-				passwordSecrets, config, secret.Store, pkeawsadapter.NewNodePoolStore(db), clusterDynamicClientFactory)
+				passwordSecrets, config, pkeawsadapter.NewNodePoolStore(db), clusterDynamicClientFactory)
 		}
 
 		vsphereClusterStore := vsphereadapter.NewClusterStore(db)
